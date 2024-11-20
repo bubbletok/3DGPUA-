@@ -1,0 +1,92 @@
+#pragma kernel InitGrid
+#pragma kernel UpdateGridValue
+
+#define THREAD_SIZE_X 32
+#define THREAD_SIZE_Y 32
+
+uint3 worldSize;
+float3 worldPos;
+float gridSpacing;
+float3 cellSize;
+float3 targetPos;
+
+struct Node {
+    float3 position;
+    float3 size;
+    float g;
+    float h;
+    float f;
+    int id;
+    uint parentIdx;
+    uint reachable;
+};
+
+static const uint NumThreads = 1024;
+static const float SQRT_2 = 1.4142135624;
+static const float SQRT_3 = 1.7320508076;
+
+RWStructuredBuffer<Node> grid;
+
+inline uint GetNumGrid()
+{
+    return worldSize.x * worldSize.y * worldSize.z;
+}
+
+inline uint GetGridIndex(int x, int y, int z)
+{
+    return z * (worldSize.x * worldSize.y) + y * worldSize.x + x;
+}
+
+inline float FastDistance(float3 a, float3 b)
+{
+    float3 diff = a - b;
+    return dot(diff, diff);
+}
+
+[numthreads(NumThreads, 1, 1)]
+void InitGrid(uint3 id : SV_DispatchThreadID)
+{
+    uint idx = id.x;
+
+    if(idx >= GetNumGrid())
+    {
+        return;
+    }
+
+    // Convert the 1D thread index to 3D grid coordinates
+    int z = idx / (worldSize.x * worldSize.y);
+    int remainder = idx % (worldSize.x * worldSize.y);
+    int y = remainder / worldSize.x;
+    int x = remainder % worldSize.x;
+
+    int halfXSize = worldSize.x / 2;
+    int halfYSize = worldSize.y / 2;
+    int halfZSize = worldSize.z / 2;
+
+    float3 offset = float3((x - halfXSize) * gridSpacing, 
+                           (y - halfYSize) * gridSpacing, 
+                           (z - halfZSize) * gridSpacing);
+    float3 nodePosition = worldPos + offset;
+
+    grid[idx] = (Node)0; // Initialization with 0
+    grid[idx].position = nodePosition;
+    grid[idx].size = cellSize;
+    grid[idx].f = -1;
+    grid[idx].id = idx;
+    grid[idx].parentIdx = idx;
+    grid[idx].reachable = 1;
+}
+
+[numthreads(NumThreads, 1, 1)]
+void UpdateGridValue(uint3 id : SV_DispatchThreadID)
+{
+    uint idx = id.x;
+    if(idx >= GetNumGrid() || grid[idx].reachable == 0)
+    {
+        return;
+    }
+
+    // Calculate h value only
+    float distSquaredH = FastDistance(grid[idx].position, targetPos);
+    grid[idx].h = sqrt(distSquaredH);
+}
