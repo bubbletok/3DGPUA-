@@ -318,13 +318,20 @@ public class AStarCompute : MonoBehaviour
 
     void SetGridInComputeShader()
     {
-        Parallel.For(0, totalNodes - 1, idx =>
+        for (int i = 0; i < totalNodes; i++)
         {
-            int x = idx % worldSize.x;
-            int y = (idx / worldSize.x) % worldSize.y;
-            int z = idx / (worldSize.x * worldSize.y);
-            flatGrid[idx] = grid[x, y, z];
-        });
+            int x = i % worldSize.x;
+            int y = (i / worldSize.x) % worldSize.y;
+            int z = i / (worldSize.x * worldSize.y);
+            flatGrid[i] = grid[x, y, z];
+        }
+        // Parallel.For(0, totalNodes - 1, idx =>
+        // {
+        //     int x = idx % worldSize.x;
+        //     int y = (idx / worldSize.x) % worldSize.y;
+        //     int z = idx / (worldSize.x * worldSize.y);
+        //     flatGrid[idx] = grid[x, y, z];
+        // });
 
         nodeBuffer.SetData(flatGrid);
     }
@@ -347,7 +354,7 @@ public class AStarCompute : MonoBehaviour
             }
             else if (!isPathFound)
             {
-                path = GetPath();
+                Task.Run(() => path = GetPath());
                 if (path != null)
                 {
                     isPathFound = true;
@@ -409,21 +416,21 @@ public class AStarCompute : MonoBehaviour
     List<Node> GetNodesNearbyTarget()
     {
         List<Node> nodes = new List<Node>();
-        Parallel.For(0, totalNodes - 1, idx =>
+        for (int i = 0; i < totalNodes; i++)
         {
-            int x = idx % worldSize.x;
-            int y = (idx / worldSize.x) % worldSize.y;
-            int z = idx / (worldSize.x * worldSize.y);
+            int x = i % worldSize.x;
+            int y = (i / worldSize.x) % worldSize.y;
+            int z = i / (worldSize.x * worldSize.y);
             Node node = grid[x, y, z];
             if (node.Reachable == 0)
             {
-                return;
+                continue;
             }
             else if (Vector3.Distance(node.Location, goalPos) < gridSpacing * 2)
             {
                 nodes.Add(node);
             }
-        });
+        }
         return nodes;
     }
 
@@ -481,25 +488,37 @@ public class AStarCompute : MonoBehaviour
 
     private List<Node> ReconstructPath(Node endNode, Node[] flatGrid)
     {
-        Stack<Node> pathStack = new Stack<Node>(1000);
-        Node currentNode = endNode;
-        int maxIterations = 1000;
+        // 입력 유효성 검사
 
-        do
+        // 초기 용량을 예상 경로 길이로 설정하여 메모리 재할당 최소화
+        var path = new List<Node>(Mathf.Min(1000, flatGrid.Length));
+        Node currentNode = endNode;
+
+        while (currentNode.id != startNode.id)
         {
-            pathStack.Push(currentNode);
+            path.Add(currentNode);
+
+            // 순환 경로 검사
+            if (path.Count >= flatGrid.Length)
+            {
+                Debug.LogError("Circular path detected during reconstruction");
+                return null;
+            }
+
+            // 유효한 부모 인덱스인지 확인
+            if (currentNode.parentIdx < 0 || currentNode.parentIdx >= flatGrid.Length)
+            {
+                Debug.LogError($"Invalid parent index: {currentNode.parentIdx}");
+                return null;
+            }
+
             currentNode = flatGrid[currentNode.parentIdx];
         }
-        while (currentNode.id != startNode.id && --maxIterations > 0);
 
-        if (maxIterations <= 0)
-        {
-            Debug.LogError("Path reconstruction exceeded maximum iterations");
-            return null;
-        }
-
-        pathStack.Push(startNode);
-        return new List<Node>(pathStack);
+        // 시작 노드 추가
+        path.Add(startNode);
+        path.Reverse();
+        return path;
     }
 
     private bool IsWalkable(int x, int y, int z)
@@ -527,7 +546,7 @@ public class AStarCompute : MonoBehaviour
         if (goalNodes.Any(goal => Vector3.Distance(goal.Location, currentNode.Location) <= 0.1f))
             return (nextX, nextY, nextZ);
 
-        
+
 
         return Jump(nextX, nextY, nextZ, direction);
     }
@@ -571,17 +590,17 @@ public class AStarCompute : MonoBehaviour
 
             float moveCost = Vector3.Distance(currentNode.Location, neighbor.Location);
             float newG = currentNode.G + moveCost;
-            
+
             if (!openList.Contains(neighborINode) || newG < neighbor.G)
             {
                 flatGrid[neighborId].G = newG;
                 flatGrid[neighborId].F = newG + neighbor.H;
                 flatGrid[neighborId].parentIdx = currentNode.id;
-                
+
                 INode newINode = new INode(
-                    flatGrid[neighborId].Location, 
-                    flatGrid[neighborId].F, 
-                    flatGrid[neighborId].H, 
+                    flatGrid[neighborId].Location,
+                    flatGrid[neighborId].F,
+                    flatGrid[neighborId].H,
                     flatGrid[neighborId].id
                 );
 

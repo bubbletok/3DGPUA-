@@ -3736,7 +3736,7 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: a0f7ff4e5939d9a45b91103748c9c8dc, type: 3}
   target: {fileID: 2064682881}
   gridSpacing: 0.25
-  worldSize: {x: 256, y: 16, z: 256}
+  worldSize: {x: 512, y: 16, z: 512}
   cellSize: {x: 0.5, y: 0.5, z: 0.5}
   obstacleLayer:
     serializedVersion: 2
@@ -5466,7 +5466,7 @@ Transform:
   m_GameObject: {fileID: 2064682877}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -19, y: -11.34, z: 1.8}
+  m_LocalPosition: {x: 63.5, y: -11.34, z: 40.2}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

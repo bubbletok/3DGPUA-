@@ -52,5 +52,5 @@
         "Temp/": true
     },
     "dotnet.preferCSharpExtension": true,
-    "dotnet.defaultSolution": "AStar_Test.sln"
+    "dotnet.defaultSolution": "3DGPUAStar.sln"
 }
